@@ -1,0 +1,15 @@
+[package]
+name = "roa" # Reign of Aliens
+version = "0.1.0"
+authors = ["sagat"]
+
+[dependencies]
+glium = "0.15"
+rodio = "0.4"
+cgmath = "0.12"
+collision = "0.9"
+specs = "0.7"
+log = "0.3"
+env_logger = "0.3"
+time = "0.1"
+image = "0.10"

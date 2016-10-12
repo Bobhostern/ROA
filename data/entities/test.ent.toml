@@ -1,0 +1,8 @@
+[spatial]
+origin = [16, 16]
+transform = {rot = 90.0}
+
+[visualtype]
+type = "still"
+# Do the data stufffffz
+texture = "stuffy.png" # Should look relative to "data/textures"
