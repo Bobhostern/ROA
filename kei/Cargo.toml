@@ -1,0 +1,9 @@
+[package]
+name = "kei"
+version = "1.0.0"
+authors = ["Bob Hostern <bob.hostern@gmail.com>"]
+
+[dependencies]
+rand = "^0.3"
+crc = "^1.0"
+clap = {version = "^2.14", features = ["suggestions", "color"]}
