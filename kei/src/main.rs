@@ -8,12 +8,15 @@ use rand::Rng;
 
 // Our key generator, but is NOT distributed w/ the app
 fn main() {
-    let matches = App::with_defaults("keigen")
+    let matches = App::new("keigen")
+                        .author(crate_authors!())
+                        .version(crate_version!())
                         .setting(AppSettings::SubcommandRequired)
                         .setting(AppSettings::GlobalVersion)
-                        .about("Create/checks keys for a kei-protected application")
+                        .about("Key manipulation for a kei-protected application")
                         .subcommand(SubCommand::with_name("generate")
                                     .about("Generates keys")
+                                    .alias("gen")
                                     .arg(Arg::from_usage("[debug] -d, --debug 'Adds debug output'"))
                                     .arg(Arg::from_usage("[random_seed] -r, --random 'Use a random seed for key generation'")
                                         .conflicts_with("custom_seed"))
@@ -24,11 +27,15 @@ fn main() {
                                     .arg(Arg::from_usage("[userdata4] -t, --userdata4=[UD] 'Sets userdata 4 (number)'")))
                         .subcommand(SubCommand::with_name("check")
                                     .about("Checks keys for validity")
-                                    .arg(Arg::from_usage("<key>"))
-                                    .arg(Arg::from_usage("[repeat] -r, --repeat 'Repeat the key (useful for batch recording)'")))
+                                    .alias("chk")
+                                    .arg(Arg::from_usage("<key> 'Key to check for validity'"))
+                                    .arg(Arg::from_usage("[repeat] -r, --repeat 'Repeat the key (useful for batch recording)'"))
+                                    .arg(Arg::from_usage("<list> -l, --list=<FILE> 'File containing a list of keys to test'")
+                                        .conflicts_with("key")))
                         .subcommand(SubCommand::with_name("info")
                                     .about("Gets key information (w/o checking for validity)")
-                                    .arg(Arg::from_usage("<key>")))
+                                    .alias("i")
+                                    .arg(Arg::from_usage("<key> 'Key to extract information from'")))
                 .get_matches();
 
     if let Some(matches) = matches.subcommand_matches("generate") {
@@ -60,16 +67,42 @@ fn main() {
         }
         println!("{}-{}", Into::<String>::into(key), key.checksum());
     } else if let Some(matches) = matches.subcommand_matches("check") {
-        let key = matches.value_of("key").unwrap();
-        if matches.is_present("repeat") {
-            println!("{} -> {:?}", key, kei::Key::check_key_from_string(key))
-        } else {
-            println!("Validity: {:?}", kei::Key::check_key_from_string(key))
+        if let Some(key) = matches.value_of("key") {
+            if matches.is_present("repeat") {
+                println!("{} -> {:?}", key, kei::Key::check_key_from_string(key))
+            } else {
+                println!("Validity: {:?}", kei::Key::check_key_from_string(key))
+            }
+        } else if let Some(filename) = matches.value_of("list") {
+            use std::io::BufRead;
+            let file = std::fs::File::open(filename).expect(&format!("unable to read file {}", filename));
+            let file = std::io::BufReader::new(file);
+            let mut blank_flag = false;
+            for line in file.lines() {
+                let line = line.unwrap();
+                let line = line.trim();
+                if line.starts_with("#") {
+                    println!("{}", line); blank_flag = false;
+                } else if line.len() == 0 && !blank_flag {
+                    println!(""); blank_flag = true;
+                } else if line.len() > 0 {
+                    blank_flag = false;
+                    if matches.is_present("repeat") {
+                        println!("{} -> {:?}", line, kei::Key::check_key_from_string(line))
+                    } else {
+                        println!("Validity: {:?}", kei::Key::check_key_from_string(line))
+                    }
+                }
+            }
         }
+
     } else if let Some(matches) = matches.subcommand_matches("info") {
         let key = matches.value_of("key").unwrap();
         match  kei::Key::parse_key(key) {
-            Some(key) => println!("{:#?}", key),
+            Some((key, chk)) => {
+                println!("{:#?}", key);
+                println!("Given checksum: {}\nReal checksum: {}", chk, key.checksum())
+            },
             None => println!("Invalid key!")
         }
     }

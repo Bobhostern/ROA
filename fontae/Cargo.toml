@@ -1,0 +1,10 @@
+[package]
+name = "fontae"
+version = "0.1.0"
+authors = ["Bob Hostern <bob.hostern@gmail.com>"]
+
+[dependencies]
+rusttype = "^0.2"
+glium = "^0.15"
+cgmath = "^0.12"
+unicode-normalization = "^0.1"

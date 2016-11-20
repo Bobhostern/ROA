@@ -106,10 +106,10 @@ impl Key {
         format_str
     }
 
-    pub fn parse_key<S: AsRef<str>>(s: S) -> Option<Key> {
+    pub fn parse_key<S: AsRef<str>>(s: S) -> Option<(Key, String)> {
         if let Some(index) = s.as_ref().rfind('-') {
-            let (t, _) = s.as_ref().split_at(index);
-            Key::_parse_key(t)
+            let (t, chk) = s.as_ref().split_at(index);
+            Key::_parse_key(t).map(|k| (k, chk.trim_matches('-').to_string()))
         } else {
             None
         }
@@ -173,16 +173,7 @@ impl Key {
     #[inline(always)]
     pub fn checksum(&self) -> String {
         let s = self.secure_string();
-        let mut left: u32 = 0xdeadbeef;
-        let mut right: u32 = 0x32323232;
-
-        for (i, c) in s.bytes().enumerate() {
-            let c: u32 = (c as u32).overflowing_shl(((i as u32)%4u32)*32u32).0;
-            right = right.overflowing_add(c).0;
-            left = left.overflowing_add(right).0;
-        }
-
-        string64_generate(((left as u64) << 32) + right as u64)
+        string64_generate(crc64::checksum_ecma(s.as_bytes()))
     }
 
     #[inline(always)]
@@ -288,7 +279,7 @@ impl Key {
             let (t, _) = s.split_at(index);
             if !check_checksum(s) { return KeyValidity::Invalid }
             match Key::parse_key(t) {
-                Some(k) => k.check_key(),
+                Some(k) => k.0.check_key(),
                 None => KeyValidity::Faux // Weird case where checksum passes, but the key doesn't parse
             }
         } else {
@@ -355,13 +346,5 @@ mod tests {
         let key_text = format!("{}-8u28ix", Into::<String>::into(key));
         println!("{}", key_text);
         assert_eq!(Key::check_key_from_string(key_text), KeyValidity::Invalid);
-    }
-
-    #[test]
-    fn test_issued_keys() {
-    }
-
-    #[test]
-    fn test_blacklist_keys() {
     }
 }
