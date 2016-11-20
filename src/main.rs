@@ -4,137 +4,74 @@ extern crate rodio;
 extern crate cgmath;
 extern crate collision;
 extern crate specs;
+
 #[macro_use]
-extern crate log;
-extern crate env_logger;
+extern crate slog;
+extern crate slog_term;
+extern crate slog_stream;
+extern crate slog_json;
+
 extern crate time;
 extern crate image;
+extern crate fontae;
 
+mod graphics;
+mod state;
+mod input;
 mod components;
 mod systems;
-pub mod graphics;
-pub mod state;
-pub mod input;
+mod font;
 
 fn main() {
     use glium::{DisplayBuild, Surface};
     use glium::backend::Facade;
-    use cgmath::Transform;
+
+    use std::io;
+    use std::fs::OpenOptions;
+    use slog::DrainExt;
 
     let display = glium::glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
-        .with_title("Reign of Aliens - Yes, the name is TEMPORARY")
+        .with_title("Spiritus [Name in Flux]")
+        // .with_gl_robustness(glium::glutin::Robustness::RobustNoResetNotification)
+        // .with_vsync()
         .build_glium().unwrap();
 
-    env_logger::init().unwrap();
+    let log_path = format!("logs/{}.log", time::now().strftime("%Y-%m-%d_%H-%M-%S").unwrap());
+    let file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(log_path).unwrap();
 
-    // The ECS we use, SPECS, handles nearly EVERYTHING, from GUI to actors.
-    // We just need to find a good way to do that.
+    let file = slog_stream::stream(file, slog_json::default());
+    let console = slog_term::streamer().build();
+    let drain = slog::duplicate(file, console).fuse();
 
-    let mut planner = {
-        let mut w = specs::World::new();
-        // Register components
-        w.register::<components::Spatial>();
-        w.register::<components::VisualType>();
+    let root = slog::Logger::root(drain, o!());
+    info!(root, "LoggingSystem initialized"; "build_ver" => env!("CARGO_PKG_VERSION"));
+    // TDummy! We just need to use an Rc<Context> as our context, and we pass in a frame every update
+    // and we good to go!
 
-        // Create the Planner to run systems
-        specs::Planner::new(w, 4)
-    };
-    let (swidth, sheight) = display.get_context().get_framebuffer_dimensions();
-    debug!("Window dimensions: {}x{}", swidth, sheight);
+    let mut state_machine = state::StateMachine::new(&display, root.new(o!("service"=>"states")));
+    state_machine.push_state(state::MainGameState::new());
 
-    // Create drawing texture
-    let game_render_texture = glium::Texture2d::empty(&display, swidth, sheight).unwrap();
-    // let mut game_render_surface = game_render_texture.as_surface();
-    game_render_texture.as_surface();
-    let gui_render_texture = glium::Texture2d::empty(&display, swidth, sheight).unwrap();
-    gui_render_texture.as_surface();
+    // Musika!
+    use rodio::Source;
+    let endpoint = rodio::get_default_endpoint().unwrap();
+    let sink = rodio::Sink::new(&endpoint);
 
-    let (render_in, render_out) = systems::create_render_channel();
-    // Why clone render_in? Because it is how ANY rendering command gets to our renderer, and we happen
-    // to need a separate Camera system that ALSO requires a render pipeline too (except it just adjusts
-    // the View.)
-    let render_sys = systems::RenderSystem::new(render_in.clone());
-    let mut renderer = systems::Renderer::new(render_out, (swidth, sheight));
+    let s1 = rodio::source::SineWave::new(440);
+    let s2 = rodio::source::SineWave::new(880);
+    let s3 = rodio::source::SineWave::new(220);
+    sink.append(s1.mix(s2).mix(s3).amplify(0.5));
 
-    use cgmath::{Rotation3, Basis3};
-
-    // Setup entities
-    planner.mut_world().create_now().with(
-        components::Spatial {
-            pos: cgmath::Point2::new(32.0, 32.0),
-            origin: cgmath::Point2::new(16.0, 16.0),
-            transform: cgmath::Decomposed {
-                rot: Basis3::from_angle_z(cgmath::Deg(90.0)),
-                ..cgmath::Decomposed::one()
-            }
-        }
-    ).with(
-        // TODO: Hide generating types
-        components::VisualType::Still(vec![
-            graphics::Vertex { position: [0.0, 0.0], color: [1.0,0.0,0.754,1.0], tex_coords: [0.0, 0.0] },
-            graphics::Vertex { position: [32.0, 0.0], color: [1.0,0.0,0.0,1.0], tex_coords: [1.0, 0.0] },
-            graphics::Vertex { position: [35.0, 35.0], color: [1.0,0.0,0.0,1.0], tex_coords: [1.0, 1.0] },
-            graphics::Vertex { position: [0.0, 32.0], color: [1.0,0.0,0.0,1.0], tex_coords: [0.0, 1.0] }
-        ], Some(vec![0, 1, 2, 2, 0, 3]), None)
-    );
-
-    planner.mut_world().create_now().with(
-        components::Spatial {
-            pos: cgmath::Point2::new(0.0, 0.0),
-            origin: cgmath::Point2::new(16.0, 16.0),
-            transform: cgmath::Decomposed {
-                rot: Basis3::from_angle_z(cgmath::Deg(0.0)),
-                ..cgmath::Decomposed::one()
-            }
-        }
-    ).with(
-        // TODO: Hide generating types
-        components::VisualType::Still(vec![
-            graphics::Vertex { position: [0.0, 0.0], color: [0.0,1.0,0.754,1.0], tex_coords: [0.0, 0.0] },
-            graphics::Vertex { position: [32.0, 0.0], color: [0.0,1.0,0.0,1.0], tex_coords: [1.0, 0.0] },
-            graphics::Vertex { position: [35.0, 35.0], color: [0.0,1.0,0.0,1.0], tex_coords: [1.0, 1.0] },
-            graphics::Vertex { position: [0.0, 32.0], color: [0.0,1.0,0.0,1.0], tex_coords: [0.0, 1.0] }
-        ], Some(vec![0, 1, 2, 2, 0, 3]), None)
-    );
-
-    // Register systems
-    planner.add_system(render_sys, "render", 5);
-
-    // <-- Do we use immediate mode GUI, because we want to use the drawing system all the way.
-    let keyreader = input::KeyReader::new();
-    // How the engine pauses when we're out of focus
-    // TODO make a general Pause state (a.k.a. make a State system)
-    let mut update = true;
-
-    // Screen vertexbuffer and program
-    //
-    let vertices = vec![
-        graphics::Vertex { position: [-1.0, -1.0], color: [0.0, 0.0, 0.0, 0.0], tex_coords: [0.0, 0.0] },
-        graphics::Vertex { position: [1.0, -1.0], color: [0.0, 0.0, 0.0, 0.0], tex_coords: [1.0, 0.0] },
-        graphics::Vertex { position: [1.0, 1.0], color: [0.0, 0.0, 0.0, 0.0], tex_coords: [1.0, 1.0] },
-        graphics::Vertex { position: [-1.0, 1.0], color: [0.0, 0.0, 0.0, 0.0], tex_coords: [0.0, 1.0] },
-    ];
-    let scr_vb = glium::VertexBuffer::new(&display, &vertices).unwrap();
-    let indices = vec! [0u32, 1, 2, 0, 2, 3];
-    let scr_ib = glium::IndexBuffer::new(&display, glium::index::PrimitiveType::TrianglesList, &indices).unwrap();
-    let (vert_src, frag_src) = (include_str!("screen.vert"), include_str!("screen.frag"));
-    let program = glium::Program::from_source(&display, &vert_src, &frag_src, None).unwrap();
-    let mut last_tick = time::SteadyTime::now();
-    loop {
-        use std::{thread, time as stdtime};
+    while state_machine.stack_size() > 0 {
+        // use std::{thread, time as stdtime};
 
         // listing the events produced by the window and waiting to be received
         for ev in display.poll_events() {
-            use glium::glutin::Event;
-            println!("{:?}", ev);
-            println!("{:?}", keyreader.interpret_event(&ev));
-            // TODO Create state machine and allow handling of Focused event
-            match ev {
-                Event::Closed => return,   // the window has been closed by the user
-                Event::Focused(u) => update = u,
-                _ => ()
-            }
+            state_machine.process_input(ev);
         }
         // Note about the controller
         //
@@ -150,28 +87,13 @@ fn main() {
 
         // Move to system
         let mut target = display.draw();
-        target.clear_color(0.0, 0.0, 0.0, 1.0);
 
-        renderer.draw(&display, &mut game_render_texture.as_surface());
-
-        {
-            use glium::Surface;
-
-            target.draw(&scr_vb, &scr_ib, &program, &uniform! {
-                game: game_render_texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
-                gui: gui_render_texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear)
-            }, &Default::default()).unwrap();
-        }
+        state_machine.draw(&mut target);
 
         target.finish().unwrap();
 
-        // Check planner
-        let duration = time::SteadyTime::now() - last_tick;
-        last_tick = time::SteadyTime::now();
-        if update {
-            planner.dispatch(duration);
-        }
+        state_machine.update();
 
-        thread::sleep(stdtime::Duration::from_millis(16));
+        // thread::sleep(stdtime::Duration::from_millis(16));
     }
 }

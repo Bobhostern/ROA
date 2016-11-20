@@ -1,5 +1,4 @@
-// The important part
-#version 330 core
+#version 140
 // TODO Might have to create other versions for earlier GLs
 
 in vec2 v_tex_coords;
@@ -13,6 +12,5 @@ void main() {
   vec4 mtx = texture(game, v_tex_coords);
   vec4 gtx = texture(gui, v_tex_coords);
 
-  // color = mtx;
   color = mix(mtx, gtx, gtx.a);
 }

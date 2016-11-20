@@ -1,3 +1,3 @@
 mod rendering;
 
-pub use self::rendering::{RenderSystem, Renderer, create_render_channel};
+pub use self::rendering::{RenderSystem, Renderer, RenderInstruction, RenderPipeIn, RenderPipeOut, create_render_channel};

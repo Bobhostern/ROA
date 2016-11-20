@@ -1,5 +1,5 @@
-// There is no transformation matrix. This is simply an alpha aware blit to the screen.
-#version 330 core
+// There is no transformation matrix. This is simply an alpha-aware blit to the screen.
+#version 140
 
 in vec2 position;
 in vec2 tex_coords;

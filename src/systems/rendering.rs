@@ -6,7 +6,10 @@ use image::DynamicImage;
 use cgmath::{Matrix4, Decomposed, Ortho, Vector3, Basis3, Point2};
 use components::{Spatial, VisualType};
 
-pub fn create_render_channel() -> (Sender<RenderInstruction>, Receiver<RenderInstruction>) {
+pub type RenderPipeIn = Sender<RenderInstruction>;
+pub type RenderPipeOut = Receiver<RenderInstruction>;
+
+pub fn create_render_channel() -> (RenderPipeIn, RenderPipeOut) {
     channel()
 }
 
@@ -145,11 +148,9 @@ pub struct Renderer {
 
 use glium::Surface;
 use glium::backend::Facade;
-
+use cgmath::Transform;
 impl Renderer {
     pub fn new(r: Receiver<RenderInstruction>, wsize: (u32, u32)) -> Renderer {
-        use cgmath::Transform;
-
         let default_view = View {
             origin: Point2::new(wsize.0 as f32 / 2.0, wsize.1 as f32 / 2.0),
             viewport_size: (wsize.0 as f32, wsize.1 as f32),
@@ -169,6 +170,31 @@ impl Renderer {
             view: default_view.clone(),
             default_view: default_view
         }
+    }
+
+    pub fn size_and_center(&mut self, x: u32, y: u32) {
+        self.size(x, y);
+        self.center(x as f32, y as f32);
+    }
+
+    pub fn center(&mut self, x: f32, y: f32) {
+        self.view = View {
+            origin: Point2::new(x / 2.0, y / 2.0),
+            viewport_size: (x, y),
+            transform: Decomposed::one()
+        };
+    }
+
+    // Sets screen size
+    pub fn size(&mut self, w: u32, h: u32) {
+        self.projection =  Ortho {
+            left: 0.0,
+            right: w as f32,
+            bottom: 0.0,
+            top: h as f32,
+            near: 0.0,
+            far: 5.0
+        };
     }
 
     pub fn draw<F: Facade, S: Surface>(&mut self, f: &F, surface: &mut S) {
