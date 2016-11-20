@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use super::super::input::KeyReader;
 use slog::Logger;
 use glium::glutin::Event;
+use super::pause::PauseState;
 
 type CLikePointer<T> = Rc<RefCell<T>>;
 
@@ -160,16 +161,15 @@ impl State for MainGameState {
         }
     }
 
-    fn process_input(&mut self, ev: Event, _: Logger) -> EventUpdate {
-        use glium::glutin::{VirtualKeyCode, Event, ElementState};
+    fn event(&mut self, ev: Event, _: Logger) -> EventUpdate {
+        use glium::glutin::{VirtualKeyCode, ElementState};
         // debug!(log, "{:?}", ev);
         // debug!(log, "{:?}", self.keyreader.interpret_event(&ev));
 
         match ev {
-            Event::Closed => EventUpdate::Update(Update::Pop),   // the window has been closed by the user
-            Event::Focused(false) => EventUpdate::Halt, // TODO change this to push a state
+            // Event::Focused(false) => EventUpdate::Halt, // TODO change this to push a state
+            Event::Focused(false) => EventUpdate::Update(Update::Push(PauseState::new())),
              // the window has been closed by the user
-            Event::KeyboardInput(ElementState::Released, _, Some(VirtualKeyCode::Escape)) => EventUpdate::Update(Update::Pop),
             _ => EventUpdate::Halt
         }
     }

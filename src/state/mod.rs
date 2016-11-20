@@ -6,6 +6,7 @@ use glium::glutin::{Event};
 use slog::Logger;
 
 mod main_state;
+mod pause;
 pub use self::main_state::MainGameState;
 
 pub enum Update {
@@ -14,6 +15,7 @@ pub enum Update {
     Push(Box<State>),
     Pop,
     Swap(Box<State>),
+    Quit
 }
 
 pub enum EventUpdate {
@@ -29,9 +31,9 @@ pub trait State {
     fn setup(&mut self, &Rc<Context>, Logger) { }
     fn teardown(&mut self, Logger) {}
     fn draw(&mut self, &mut Frame, &Rc<Context>, Logger) { }
-    fn fixed_update(&mut self, Duration, Logger) -> Update { Update::Nothing }
-    fn update(&mut self, Duration, Logger) -> Update { Update::Nothing }
-    fn process_input(&mut self, _: Event, Logger) -> EventUpdate { EventUpdate::Halt }
+    fn fixed_update(&mut self, Duration, Logger) -> Update { Update::Halt }
+    fn update(&mut self, Duration, Logger) -> Update { Update::Halt }
+    fn event(&mut self, _: Event, Logger) -> EventUpdate { EventUpdate::Halt }
 }
 
 pub struct StateMachine {
@@ -79,10 +81,17 @@ impl StateMachine {
         };
     }
 
+    pub fn quit(&mut self) {
+        while !self.stack.is_empty() {
+            self.pop_state();
+        }
+    }
+
     pub fn handle_update(&mut self, u: Update) {
         match u {
             Update::Push(state) => self.push_state(state),
             Update::Pop => self.pop_state(),
+            Update::Quit => self.quit(),
             Update::Swap(state) => {
                 self.pop_state();
                 self.push_state(state);
@@ -97,7 +106,7 @@ impl StateMachine {
         self.last_tick = self.last_tick + dur;
         let mut st = self.last_tick.clone(); // Clone so we can borrow self.
         let mut new_updates = vec![]; // The new updates to add.
-        for state in self.stack.iter_mut() {
+        for state in self.stack.iter_mut().rev() {
             let n = state.name();
             let update = state.update(dur, self.logger.new(o!("state"=>n)));
             match update {
@@ -122,18 +131,18 @@ impl StateMachine {
     }
 
     pub fn draw(&mut self, f: &mut Frame) {
-        for state in self.stack.iter_mut().rev() {
+        for state in self.stack.iter_mut() {
             let n = state.name();
             state.draw(f, &self.context, self.logger.new(o!("state"=>n)));
         }
     }
 
-    pub fn process_input(&mut self, e: Event) {
+    pub fn event(&mut self, e: Event) {
         let mut event = e;
         let mut new_updates = vec![];
-        for state in self.stack.iter_mut() {
+        for state in self.stack.iter_mut().rev() {
             let n = state.name();
-            match state.process_input(event.clone(), self.logger.new(o!("state"=>n))) {
+            match state.event(event.clone(), self.logger.new(o!("state"=>n))) {
                 EventUpdate::PassOn(e) => event = e,
                 EventUpdate::Update(u) => match u {
                     Update::Nothing | Update::Halt => {

@@ -55,21 +55,26 @@ fn main() {
     state_machine.push_state(state::MainGameState::new());
 
     // Musika!
-    use rodio::Source;
-    let endpoint = rodio::get_default_endpoint().unwrap();
-    let sink = rodio::Sink::new(&endpoint);
-
-    let s1 = rodio::source::SineWave::new(440);
-    let s2 = rodio::source::SineWave::new(880);
-    let s3 = rodio::source::SineWave::new(220);
-    sink.append(s1.mix(s2).mix(s3).amplify(0.5));
+    // use rodio::Source;
+    // let endpoint = rodio::get_default_endpoint().unwrap();
+    // let sink = rodio::Sink::new(&endpoint);
+    //
+    // let s1 = rodio::source::SineWave::new(440);
+    // let s2 = rodio::source::SineWave::new(880);
+    // let s3 = rodio::source::SineWave::new(220);
+    // sink.append(s1.mix(s2).mix(s3).amplify(0.5));
 
     while state_machine.stack_size() > 0 {
         // use std::{thread, time as stdtime};
 
         // listing the events produced by the window and waiting to be received
         for ev in display.poll_events() {
-            state_machine.process_input(ev);
+            use glium::glutin::{VirtualKeyCode, Event, ElementState};
+
+            match ev {
+                Event::Closed | Event::KeyboardInput(ElementState::Released, _, Some(VirtualKeyCode::Escape)) => state_machine.quit(),
+                ev => state_machine.event(ev)
+            };
         }
         // Note about the controller
         //
