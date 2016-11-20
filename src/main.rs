@@ -23,10 +23,8 @@ mod systems;
 mod font;
 
 fn main() {
-    use glium::{DisplayBuild, Surface};
-    use glium::backend::Facade;
+    use glium::DisplayBuild;
 
-    use std::io;
     use std::fs::OpenOptions;
     use slog::DrainExt;
 

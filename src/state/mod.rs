@@ -1,10 +1,8 @@
 use time::{Duration, SteadyTime};
 use glium::backend::{Facade, Context};
-use glium::{Frame, Texture2d};
+use glium::Frame;
 use std::rc::Rc;
 use glium::glutin::{Event};
-use std::collections::HashMap;
-// TODO Adapt to how we do things.
 use slog::Logger;
 
 mod main_state;
@@ -35,8 +33,6 @@ pub trait State {
     fn update(&mut self, Duration, Logger) -> Update { Update::Nothing }
     fn process_input(&mut self, _: Event, Logger) -> EventUpdate { EventUpdate::Halt }
 }
-
-// pub type Library<T> = HashMap<String, T>;
 
 pub struct StateMachine {
     context: Rc<Context>,
@@ -113,7 +109,7 @@ impl StateMachine {
                 st = st - self.fixed_duration;
                 let update = state.fixed_update(self.fixed_duration.clone(), self.logger.new(o!("state"=>n)));
                 match update {
-                    // Update::Nothing => (),
+                    Update::Nothing => (),
                     Update::Halt => break,
                     update => {new_updates.push(update); break}
                 };

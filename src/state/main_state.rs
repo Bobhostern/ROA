@@ -1,13 +1,13 @@
 use super::{Update, State, EventUpdate};
-use time::{Duration, SteadyTime};
-use glium::backend::{Facade, Context};
+use time::Duration;
+use glium::backend::Context;
 use glium::{Frame, Program, IndexBuffer, VertexBuffer, index};
 use std::rc::Rc;
 use specs::{Planner, World};
-use glium::{Surface, Display, Texture2d};
+use glium::{Surface, Texture2d};
 use {components, systems};
 use super::super::graphics::Vertex;
-use systems::{Renderer, RenderSystem, RenderPipeIn};
+use systems::{Renderer, RenderPipeIn};
 use std::cell::RefCell;
 use super::super::input::KeyReader;
 use slog::Logger;
@@ -33,7 +33,7 @@ pub struct MainGameState {
 impl MainGameState {
     pub fn new() -> Box<MainGameState> {
         let (render_in, render_out) = systems::create_render_channel();
-        let mut planner = {
+        let planner = {
             let mut w = World::new();
             // Register components
             w.register::<components::Spatial>();
@@ -133,12 +133,12 @@ impl State for MainGameState {
         self.planner.add_system(render_sys, "render", 5);
     }
 
-    fn update(&mut self, dura: Duration, log: Logger) -> Update {
+    fn update(&mut self, dura: Duration, _: Logger) -> Update {
         self.planner.dispatch(dura);
         Update::Nothing
     }
 
-    fn draw(&mut self, target: &mut Frame, context: &Rc<Context>, log: Logger) {
+    fn draw(&mut self, target: &mut Frame, context: &Rc<Context>, _: Logger) {
         // Are we wasteful? hell yes, but what ev er.
         let ref scr_vb = self.vertexbuffers[0];
         let ref scr_ib = self.indexbuffers[0];
@@ -160,14 +160,14 @@ impl State for MainGameState {
         }
     }
 
-    fn process_input(&mut self, ev: Event, log: Logger) -> EventUpdate {
+    fn process_input(&mut self, ev: Event, _: Logger) -> EventUpdate {
         use glium::glutin::{VirtualKeyCode, Event, ElementState};
         // debug!(log, "{:?}", ev);
         // debug!(log, "{:?}", self.keyreader.interpret_event(&ev));
 
         match ev {
             Event::Closed => EventUpdate::Update(Update::Pop),   // the window has been closed by the user
-            Event::Focused(u) => EventUpdate::Halt, // TODO change this to push a state
+            Event::Focused(false) => EventUpdate::Halt, // TODO change this to push a state
              // the window has been closed by the user
             Event::KeyboardInput(ElementState::Released, _, Some(VirtualKeyCode::Escape)) => EventUpdate::Update(Update::Pop),
             _ => EventUpdate::Halt
