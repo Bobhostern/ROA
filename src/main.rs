@@ -4,12 +4,17 @@ extern crate rodio;
 extern crate cgmath;
 extern crate collision;
 extern crate specs;
+extern crate palette;
+
+extern crate nalgebra;
+extern crate ncollide;
 
 #[macro_use]
 extern crate slog;
 extern crate slog_term;
 extern crate slog_stream;
 extern crate slog_json;
+extern crate slog_extra;
 
 extern crate time;
 extern crate image;
@@ -21,12 +26,14 @@ mod input;
 mod components;
 mod systems;
 mod font;
+// TODO: Create tests for all NEW systems (go to the tests crate!)
 
 fn main() {
     use glium::DisplayBuild;
 
     use std::fs::OpenOptions;
     use slog::DrainExt;
+    use std::fs::DirBuilder;
 
     let display = glium::glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
@@ -35,6 +42,7 @@ fn main() {
         // .with_vsync()
         .build_glium().unwrap();
 
+    DirBuilder::new().recursive(true).create("logs").unwrap();
     let log_path = format!("logs/{}.log", time::now().strftime("%Y-%m-%d_%H-%M-%S").unwrap());
     let file = OpenOptions::new()
         .create(true)
@@ -44,7 +52,7 @@ fn main() {
 
     let file = slog_stream::stream(file, slog_json::default());
     let console = slog_term::streamer().build();
-    let drain = slog::duplicate(file, console).fuse();
+    let drain = slog_extra::Async::new(slog::duplicate(file, console).fuse()).fuse();
 
     let root = slog::Logger::root(drain, o!());
     info!(root, "LoggingSystem initialized"; "build_ver" => env!("CARGO_PKG_VERSION"));
@@ -55,14 +63,14 @@ fn main() {
     state_machine.push_state(state::MainGameState::new());
 
     // Musika!
-    // use rodio::Source;
-    // let endpoint = rodio::get_default_endpoint().unwrap();
-    // let sink = rodio::Sink::new(&endpoint);
-    //
-    // let s1 = rodio::source::SineWave::new(440);
-    // let s2 = rodio::source::SineWave::new(880);
-    // let s3 = rodio::source::SineWave::new(220);
-    // sink.append(s1.mix(s2).mix(s3).amplify(0.5));
+    use rodio::Source;
+    let endpoint = rodio::get_default_endpoint().unwrap();
+    let sink = rodio::Sink::new(&endpoint);
+
+    let s1 = rodio::source::SineWave::new(440);
+    let s2 = rodio::source::SineWave::new(880);
+    let s3 = rodio::source::SineWave::new(220);
+    sink.append(s1.mix(s2).mix(s3).amplify(0.5));
 
     while state_machine.stack_size() > 0 {
         // use std::{thread, time as stdtime};

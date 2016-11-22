@@ -13,6 +13,8 @@ use super::super::input::KeyReader;
 use slog::Logger;
 use glium::glutin::Event;
 use super::pause::PauseState;
+use components::RectangleProvider;
+use palette::{Colora, Rgba};
 
 type CLikePointer<T> = Rc<RefCell<T>>;
 
@@ -104,12 +106,9 @@ impl State for MainGameState {
             }
         ).with(
             // TODO: Hide generating types
-            components::VisualType::Still(vec![
-                Vertex { position: [0.0, 0.0], color: [1.0,0.0,0.754,1.0], tex_coords: [0.0, 0.0] },
-                Vertex { position: [32.0, 0.0], color: [1.0,0.0,0.0,1.0], tex_coords: [1.0, 0.0] },
-                Vertex { position: [35.0, 35.0], color: [1.0,0.0,0.0,1.0], tex_coords: [1.0, 1.0] },
-                Vertex { position: [0.0, 32.0], color: [1.0,0.0,0.0,1.0], tex_coords: [0.0, 1.0] }
-            ], Some(vec![0, 1, 2, 2, 0, 3]), None)
+            components::VisualType::Still(
+                RectangleProvider::new_from_size_components(32.0, 32.0, Rgba::new(1.0, 0.1, 0.1, 1.0).into()),
+                None)
         );
 
         self.planner.mut_world().create_now().with(
@@ -123,12 +122,9 @@ impl State for MainGameState {
             }
         ).with(
             // TODO: Hide generating types
-            components::VisualType::Still(vec![
-                Vertex { position: [0.0, 0.0], color: [0.0,1.0,0.754,1.0], tex_coords: [0.0, 0.0] },
-                Vertex { position: [32.0, 0.0], color: [0.0,1.0,0.0,1.0], tex_coords: [1.0, 0.0] },
-                Vertex { position: [35.0, 35.0], color: [0.0,1.0,0.0,1.0], tex_coords: [1.0, 1.0] },
-                Vertex { position: [0.0, 32.0], color: [0.0,1.0,0.0,1.0], tex_coords: [0.0, 1.0] }
-            ], Some(vec![0, 1, 2, 2, 0, 3]), None)
+            components::VisualType::Still(
+                RectangleProvider::new_from_size_components(32.0, 32.0, Rgba::new(0.1, 1.0, 0.1, 1.0).into()),
+                None)
         );
 
         self.planner.add_system(render_sys, "render", 5);
@@ -145,7 +141,7 @@ impl State for MainGameState {
         let ref scr_ib = self.indexbuffers[0];
         let ref program = self.programs[0];
 
-        target.clear_color(0.0, 0.0, 0.0, 1.0);
+        target.clear_color(0.0, 0.1, 0.1, 1.0);
 
         self.renderer.draw(context, &mut self.game_tex.as_mut().unwrap().as_surface());
 
@@ -168,7 +164,7 @@ impl State for MainGameState {
 
         match ev {
             // Event::Focused(false) => EventUpdate::Halt, // TODO change this to push a state
-            Event::Focused(false) => EventUpdate::Update(Update::Push(PauseState::new())),
+            Event::Focused(false) | Event::KeyboardInput(ElementState::Released, _, Some(VirtualKeyCode::P)) => EventUpdate::Update(Update::Push(PauseState::new())),
              // the window has been closed by the user
             _ => EventUpdate::Halt
         }

@@ -42,7 +42,7 @@ fn create_origin_translation(origin: &Point2<f32>, decomp: &Decomposed<Vector3<f
 #[allow(dead_code)]
 #[derive(Clone)]
 pub enum RenderInstruction {
-    ClearScreen(f32, f32, f32, f32),
+    // ClearScreen(f32, f32, f32, f32), // DEPRECATED XXX Handle this outside
     // Vertices Indices Texture ShaderID Modelmatrix
     Draw(Vec<Vertex>, Option<Vec<Index>>, Option<DynamicImage>, String, Matrix4<f32>),
     Zoom(f32), // We don't support separate x and y zooms...yet.
@@ -69,8 +69,7 @@ impl specs::System<Duration> for RenderSystem {
         let (mut spat, vtype, ents) = arg.fetch(|w| {
             (w.write::<Spatial>(), w.read::<VisualType>(), w.entities())
         });
-        self.pipeline.send(RenderInstruction::ClearScreen(0.0, 0.0, 0.0, 1.0)).unwrap();
-        self.pipeline.send(RenderInstruction::Translate(-1.0, -0.5)).unwrap();
+        // self.pipeline.send(RenderInstruction::Translate(-1.0, -0.5)).unwrap();
         for (s, v, _) in (&mut spat, &vtype, &ents).iter() {
             // Here we kind of change it up!
             use cgmath::{Transform, EuclideanSpace};
@@ -78,10 +77,11 @@ impl specs::System<Duration> for RenderSystem {
             s.transform.disp = s.pos.to_vec().extend(0.0); // Sets out model's displacement to out position. Duh.
             let origin_trans = create_origin_translation(&s.origin, &s.transform);
             let model_matrix: Matrix4<f32> = origin_trans.concat(&s.transform).into();
-            match v.clone() {
-                VisualType::Sprite { .. } => (),
-                VisualType::Still(ref verts, ref indx, ref tex) => {
-                    self.pipeline.send(RenderInstruction::Draw(verts.clone(), indx.clone(), tex.clone(), "basic".into(), model_matrix)).unwrap();
+            match v {
+                &VisualType::Sprite { .. } => (),
+                &VisualType::Still(ref verts_gen, ref tex) => {
+                    let (verts, indx) = verts_gen.provide();
+                    self.pipeline.send(RenderInstruction::Draw(verts, indx, tex.clone(), "basic".into(), model_matrix)).unwrap();
                 }
             }
         }
@@ -201,7 +201,7 @@ impl Renderer {
         // Check if there are any instructions
         while let Ok(inst) = self.receiver.try_recv() {
             match inst {
-                RenderInstruction::ClearScreen(r, g, b, a) => surface.clear_color(r, g, b, a),
+                // RenderInstruction::ClearScreen(r, g, b, a) => surface.clear_color(r, g, b, a),
                 RenderInstruction::Zoom(by) => self.view.transform.scale = by,
                 RenderInstruction::Translate(x, y) => self.view.transform.disp -= Vector3::new(x, y, 0.0),
                 RenderInstruction::SetOrigin(x, y) => self.view.origin = Point2::new(x, y),

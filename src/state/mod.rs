@@ -66,7 +66,7 @@ impl StateMachine {
     pub fn push_state(&mut self, mut state: Box<State>) {
         let n = state.name();
         state.setup(&self.context, self.logger.new(o!("state"=>n)));
-        debug!(self.logger, "Pushed state {:p}: {}", state, state.name());
+        debug!(self.logger, "Pushed state"; "mem_loc" => format!("{:p}", state), "name" => state.name());
         self.stack.push(state);
     }
 
@@ -75,13 +75,14 @@ impl StateMachine {
             Some(mut state) => {
                 let n = state.name();
                 state.teardown(self.logger.new(o!("state"=>n)));
-                debug!(self.logger, "Popped state {:p}: {}", state, state.name());
+                debug!(self.logger, "Popped state"; "mem_loc" => format!("{:p}", state), "name" => state.name());
             },
             None => ()
         };
     }
 
     pub fn quit(&mut self) {
+        debug!(self.logger, "Dumping all states");
         while !self.stack.is_empty() {
             self.pop_state();
         }

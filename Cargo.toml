@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["sagat"]
 
 [dependencies]
+slog = "^1.3"
+slog-term = "^1.3"
+slog-stream = "^1.2"
+slog-json = "^1.2"
+slog-extra = "^0.1"
+
 glium = "^0.15"
 rodio = "^0.4"
 cgmath = "^0.12"
@@ -12,13 +18,13 @@ collision = "^0.9"
 ncollide = "^0.10"
 nalgebra = "^0.10"
 specs = "^0.7"
-slog = "^1.3"
-slog-term = "^1.3"
-slog-stream = "^1.2"
-slog-json = "^1.2"
 time = "^0.1"
 image = "^0.10"
 fontae = { path = "fontae" }
+palette = {version = "^0.2", features = ["named", "named_from_str"]}
+
+[dev-dependencies]
+spectral = "^0.5"
 
 [workspace]
 members = ["fontae", "kei"]
