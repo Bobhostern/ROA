@@ -22,9 +22,9 @@ time = "^0.1"
 image = "^0.10"
 fontae = { path = "fontae" }
 palette = {version = "^0.2", features = ["named", "named_from_str"]}
-
-[dev-dependencies]
-spectral = "^0.5"
+# ordered-float = "^0.3"
+bus = "^1.1"
+toml = "^0.2"
 
 [workspace]
 members = ["fontae", "kei"]

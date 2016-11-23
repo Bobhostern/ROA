@@ -100,7 +100,7 @@ impl State for MainGameState {
                 pos: cgmath::Point2::new(32.0, 32.0),
                 origin: cgmath::Point2::new(16.0, 16.0),
                 transform: cgmath::Decomposed {
-                    rot: Basis3::from_angle_z(cgmath::Deg(90.0)),
+                    rot: Basis3::from_angle_z(cgmath::Deg(45.0)),
                     ..cgmath::Decomposed::one()
                 }
             }
@@ -142,7 +142,8 @@ impl State for MainGameState {
         let ref program = self.programs[0];
 
         target.clear_color(0.0, 0.1, 0.1, 1.0);
-
+        self.game_tex.as_mut().unwrap().as_surface().clear_color(0.0, 0.0, 0.0, 0.0);
+        
         self.renderer.draw(context, &mut self.game_tex.as_mut().unwrap().as_surface());
 
         {

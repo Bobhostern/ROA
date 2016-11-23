@@ -19,6 +19,8 @@ extern crate slog_extra;
 extern crate time;
 extern crate image;
 extern crate fontae;
+// extern crate ordered_float;
+extern crate bus;
 
 mod graphics;
 mod state;
@@ -27,6 +29,8 @@ mod components;
 mod systems;
 mod font;
 // TODO: Create tests for all NEW systems (go to the tests crate!)
+pub mod utilai;
+mod events;
 
 fn main() {
     use glium::DisplayBuild;

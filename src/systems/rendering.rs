@@ -3,7 +3,7 @@ use graphics::{Vertex, Index};
 use time::Duration;
 use std::sync::mpsc::{Sender, Receiver, channel};
 use image::DynamicImage;
-use cgmath::{Matrix4, Decomposed, Ortho, Vector3, Basis3, Point2};
+use cgmath::{Matrix4, Decomposed, Ortho, Vector3, Point2, Basis3};
 use components::{Spatial, VisualType};
 
 pub type RenderPipeIn = Sender<RenderInstruction>;
@@ -69,10 +69,11 @@ impl specs::System<Duration> for RenderSystem {
         let (mut spat, vtype, ents) = arg.fetch(|w| {
             (w.write::<Spatial>(), w.read::<VisualType>(), w.entities())
         });
-        // self.pipeline.send(RenderInstruction::Translate(-1.0, -0.5)).unwrap();
+        self.pipeline.send(RenderInstruction::Translate(-1.0, -0.5)).unwrap();
         for (s, v, _) in (&mut spat, &vtype, &ents).iter() {
             // Here we kind of change it up!
             use cgmath::{Transform, EuclideanSpace};
+            use nalgebra::PointAsVector;
 
             s.transform.disp = s.pos.to_vec().extend(0.0); // Sets out model's displacement to out position. Duh.
             let origin_trans = create_origin_translation(&s.origin, &s.transform);
@@ -213,6 +214,7 @@ impl Renderer {
                     let view_origin_adjust = create_origin_translation(&self.view.origin, &self.view.transform);
                     let view_m: Matrix4<f32> = view_origin_adjust.concat(&self.view.transform).clone().into();
                     let proj_m: Matrix4<f32> = self.projection.clone().into();
+
                     let uniforms = match tex {
                         Some(_) => unimplemented!(),
                         None => uniform!{
@@ -228,7 +230,7 @@ impl Renderer {
                         None => index::NoIndices(index::PrimitiveType::TrianglesList).into()
                     };
                     let vertsource = VertexBuffer::new(f, &vb).unwrap();
-                    let (vert_shd_src, frag_shd_src) = load_shaders(shd).unwrap();
+                    let (vert_shd_src, frag_shd_src) = load_shaders(shd).unwrap();// TODO: Log this.
                     let program = Program::from_source(f, &vert_shd_src, &frag_shd_src, None).unwrap();
 
                     surface.draw(&vertsource, indsource, &program, &uniforms, &Default::default()).unwrap();
