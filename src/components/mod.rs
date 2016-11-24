@@ -1,7 +1,6 @@
 use specs;
 // TODO Switch to nalgebra
-use cgmath::{Point2, Vector3, Basis3, Decomposed};
-use nalgebra::Vector2;
+use nalgebra::{Vector2, Point2, Rotation2};
 use graphics::{Vertex, Index};
 use image::DynamicImage;
 use palette::{Colora, Rgb};
@@ -12,7 +11,7 @@ use glium::index::Index as GIndex;
 pub struct Spatial {
     pub pos: Point2<f32>,
     pub origin: Point2<f32>, // Relative to the bottom left corner
-    pub transform: Decomposed<Vector3<f32>, Basis3<f32>>, // NOTE NEVER CHANGE disp! The render system already sets it.
+    pub rotation: Rotation2<f32>, // NOTE NEVER CHANGE disp! The render system already sets it.
 }
 
 // For shape support

@@ -12,8 +12,6 @@ slog-extra = "^0.1"
 
 glium = "^0.15"
 rodio = "^0.4"
-cgmath = "^0.12"
-collision = "^0.9"
 # Switch to ncollide for collision detection, nalgebra for math
 ncollide = "^0.10"
 nalgebra = "^0.10"

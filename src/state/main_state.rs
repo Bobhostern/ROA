@@ -49,7 +49,7 @@ impl MainGameState {
         let state = MainGameState {
             planner: planner,
             render_in: render_in,
-            renderer: Renderer::new(render_out, (0, 0)), // resize at setup
+            renderer: Renderer::new(render_out, (1, 1)), // resize at setup
             game_tex: None,
             gui_tex: None,
             programs: vec![],
@@ -65,7 +65,7 @@ impl State for MainGameState {
     fn name(&self) -> &'static str { "MainGame" }
 
     fn setup(&mut self, c: &Rc<Context>, log: Logger) {
-        use cgmath;
+        use nalgebra;
 
         info!(log, "Main Game is being initialized! Yay!");
         // Resize renderer to actual dimensions
@@ -92,17 +92,12 @@ impl State for MainGameState {
 
         let render_sys = systems::RenderSystem::new(self.render_in.clone());
 
-        use cgmath::{Rotation3, Basis3, Transform};
-
         // Setup entities
         self.planner.mut_world().create_now().with(
             components::Spatial {
-                pos: cgmath::Point2::new(32.0, 32.0),
-                origin: cgmath::Point2::new(16.0, 16.0),
-                transform: cgmath::Decomposed {
-                    rot: Basis3::from_angle_z(cgmath::Deg(45.0)),
-                    ..cgmath::Decomposed::one()
-                }
+                pos: nalgebra::Point2::new(32.0, 32.0),
+                origin: nalgebra::Point2::new(16.0, 16.0),
+                rotation: nalgebra::Rotation2::new(nalgebra::Vector1::new(45.0f32.to_radians()))
             }
         ).with(
             // TODO: Hide generating types
@@ -113,12 +108,9 @@ impl State for MainGameState {
 
         self.planner.mut_world().create_now().with(
             components::Spatial {
-                pos: cgmath::Point2::new(0.0, 0.0),
-                origin: cgmath::Point2::new(16.0, 16.0),
-                transform: cgmath::Decomposed {
-                    rot: Basis3::from_angle_z(cgmath::Deg(0.0)),
-                    ..cgmath::Decomposed::one()
-                }
+                pos: nalgebra::Point2::new(0.0, 0.0),
+                origin: nalgebra::Point2::new(16.0, 16.0),
+                rotation: nalgebra::one()
             }
         ).with(
             // TODO: Hide generating types
@@ -143,7 +135,7 @@ impl State for MainGameState {
 
         target.clear_color(0.0, 0.1, 0.1, 1.0);
         self.game_tex.as_mut().unwrap().as_surface().clear_color(0.0, 0.0, 0.0, 0.0);
-        
+
         self.renderer.draw(context, &mut self.game_tex.as_mut().unwrap().as_surface());
 
         {

@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate glium;
 extern crate rodio;
-extern crate cgmath;
-extern crate collision;
 extern crate specs;
 extern crate palette;
 

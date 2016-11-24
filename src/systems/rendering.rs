@@ -3,8 +3,8 @@ use graphics::{Vertex, Index};
 use time::Duration;
 use std::sync::mpsc::{Sender, Receiver, channel};
 use image::DynamicImage;
-use cgmath::{Matrix4, Decomposed, Ortho, Vector3, Point2, Basis3};
 use components::{Spatial, VisualType};
+use nalgebra::{Isometry2, OrthographicMatrix3, Matrix4, Point2, Vector2};
 
 pub type RenderPipeIn = Sender<RenderInstruction>;
 pub type RenderPipeOut = Receiver<RenderInstruction>;
@@ -13,38 +13,12 @@ pub fn create_render_channel() -> (RenderPipeIn, RenderPipeOut) {
     channel()
 }
 
-// FIXME Maybe: Genericize?
-fn create_origin_translation(origin: &Point2<f32>, decomp: &Decomposed<Vector3<f32>, Basis3<f32>>) -> Decomposed<Vector3<f32>, Basis3<f32>> {
-    use cgmath::{Rotation, Transform, InnerSpace, Angle};
-    let trans_angl = decomp.rot
-        .rotate_vector(Vector3::new(1.0, 0.0, 0.0))
-        .angle(Vector3::new(1.0, 0.0, 0.0));
-    // println!("Angle {:?}", trans_angl);
-
-    // Derived from SFML
-    let origin_rot_x = origin.x * (1.0 - trans_angl.cos()) + origin.y * trans_angl.sin();
-    let origin_rot_y = origin.y * (1.0 - trans_angl.cos()) - origin.x * trans_angl.sin();
-    // NOTE There is not scaleX or scaleY, only scale
-    let origin_scale_x = origin.x * (1.0 - decomp.scale); // Would use scaleX
-    let origin_scale_y = origin.y * (1.0 - decomp.scale); // Would use scaleY
-    // End derivation
-
-    Decomposed {
-        disp: Vector3::new(
-            origin_rot_x + origin_scale_x,
-            origin_rot_y + origin_scale_y,
-            0.0
-        ),
-        ..Decomposed::one()
-    }
-}
-
 #[allow(dead_code)]
 #[derive(Clone)]
 pub enum RenderInstruction {
     // ClearScreen(f32, f32, f32, f32), // DEPRECATED XXX Handle this outside
     // Vertices Indices Texture ShaderID Modelmatrix
-    Draw(Vec<Vertex>, Option<Vec<Index>>, Option<DynamicImage>, String, Matrix4<f32>),
+    Draw(Vec<Vertex>, Option<Vec<Index>>, Option<DynamicImage>, String, Isometry2<f32>),
     Zoom(f32), // We don't support separate x and y zooms...yet.
     Translate(f32, f32),
     SetOrigin(f32, f32),
@@ -72,17 +46,17 @@ impl specs::System<Duration> for RenderSystem {
         self.pipeline.send(RenderInstruction::Translate(-1.0, -0.5)).unwrap();
         for (s, v, _) in (&mut spat, &vtype, &ents).iter() {
             // Here we kind of change it up!
-            use cgmath::{Transform, EuclideanSpace};
-            use nalgebra::PointAsVector;
+            use nalgebra::{RotationWithTranslation, Rotation};
+            use nalgebra as na;
 
-            s.transform.disp = s.pos.to_vec().extend(0.0); // Sets out model's displacement to out position. Duh.
-            let origin_trans = create_origin_translation(&s.origin, &s.transform);
-            let model_matrix: Matrix4<f32> = origin_trans.concat(&s.transform).into();
+            // let iso = Isometry2::from_rotation_matrix(-s.pos.clone().to_vector(), na::one());
+            let iso = Isometry2::from_rotation_matrix(s.pos.clone().to_vector(), na::one()).append_rotation_wrt_point(&s.rotation.rotation(), &(s.pos.as_vector() + s.origin.as_vector()));
+            // let iso = Isometry2::new(s.pos.clone().to_vector(), na::one());
             match v {
                 &VisualType::Sprite { .. } => (),
                 &VisualType::Still(ref verts_gen, ref tex) => {
                     let (verts, indx) = verts_gen.provide();
-                    self.pipeline.send(RenderInstruction::Draw(verts, indx, tex.clone(), "basic".into(), model_matrix)).unwrap();
+                    self.pipeline.send(RenderInstruction::Draw(verts, indx, tex.clone(), "basic".into(), iso)).unwrap();
                 }
             }
         }
@@ -131,7 +105,7 @@ fn load_shaders<P: AsRef<str>>(s: P) -> Result<(String, String), IoError> {
 pub struct View {
     pub origin: Point2<f32>,
     pub viewport_size: (f32, f32),
-    pub transform: Decomposed<Vector3<f32>, Basis3<f32>>,
+    pub transform: Isometry2<f32>,
 }
 
 impl View {
@@ -142,32 +116,25 @@ impl View {
 pub struct Renderer {
     receiver: Receiver<RenderInstruction>,
     // TODO Move projection to view to complete it.
-    projection: Ortho<f32>,
+    projection: OrthographicMatrix3<f32>,
     view: View,
     default_view: View, // A 1 to 1 mapping of the screen
 }
 
 use glium::Surface;
 use glium::backend::Facade;
-use cgmath::Transform;
+use nalgebra as na;
 impl Renderer {
     pub fn new(r: Receiver<RenderInstruction>, wsize: (u32, u32)) -> Renderer {
         let default_view = View {
             origin: Point2::new(wsize.0 as f32 / 2.0, wsize.1 as f32 / 2.0),
             viewport_size: (wsize.0 as f32, wsize.1 as f32),
-            transform: Decomposed::one()
+            transform: na::one()
         };
 
         Renderer {
             receiver: r,
-            projection: Ortho {
-                left: 0.0,
-                right: wsize.0 as f32,
-                bottom: 0.0,
-                top: wsize.1 as f32,
-                near: 0.0,
-                far: 5.0
-            },
+            projection: OrthographicMatrix3::new(0.0, wsize.0 as f32, 0.0, wsize.1 as f32, 0.0, 1.0),
             view: default_view.clone(),
             default_view: default_view
         }
@@ -182,43 +149,39 @@ impl Renderer {
         self.view = View {
             origin: Point2::new(x / 2.0, y / 2.0),
             viewport_size: (x, y),
-            transform: Decomposed::one()
+            transform: na::one()
         };
     }
 
     // Sets screen size
     pub fn size(&mut self, w: u32, h: u32) {
-        self.projection =  Ortho {
-            left: 0.0,
-            right: w as f32,
-            bottom: 0.0,
-            top: h as f32,
-            near: 0.0,
-            far: 5.0
-        };
+        self.projection =  OrthographicMatrix3::new(0.0, w as f32, 0.0, h as f32, 0.0, 1.0);
     }
 
     pub fn draw<F: Facade, S: Surface>(&mut self, f: &F, surface: &mut S) {
+        use nalgebra::{Translation, ToHomogeneous};
+
         // Check if there are any instructions
         while let Ok(inst) = self.receiver.try_recv() {
             match inst {
                 // RenderInstruction::ClearScreen(r, g, b, a) => surface.clear_color(r, g, b, a),
-                RenderInstruction::Zoom(by) => self.view.transform.scale = by,
-                RenderInstruction::Translate(x, y) => self.view.transform.disp -= Vector3::new(x, y, 0.0),
+                // RenderInstruction::Zoom(by) => self.view.transform.scale = by,
+                // Translate everything drawn by amount
+                RenderInstruction::Translate(x, y) => self.view.transform.append_translation_mut(&-Vector2::new(x,y)),
                 RenderInstruction::SetOrigin(x, y) => self.view.origin = Point2::new(x, y),
-                RenderInstruction::Draw(vb, ib, tex, shd, model_m) => {
+                RenderInstruction::Draw(vb, ib, tex, shd, model_iso) => {
                     use glium::{IndexBuffer, index, VertexBuffer, Program};
-                    use cgmath::Transform;
-                    use cgmath::conv::*;
 
-                    let view_origin_adjust = create_origin_translation(&self.view.origin, &self.view.transform);
-                    let view_m: Matrix4<f32> = view_origin_adjust.concat(&self.view.transform).clone().into();
-                    let proj_m: Matrix4<f32> = self.projection.clone().into();
+                    // TODO: Support view scaling (zoom)
+                    let view_iso = self.view.transform;
+                    let proj_m = self.projection.to_matrix();
 
                     let uniforms = match tex {
                         Some(_) => unimplemented!(),
                         None => uniform!{
-                            mvp: array4x4(proj_m * view_m * model_m)
+                            projection: *proj_m.as_ref(),
+                            view: *view_iso.to_homogeneous().as_ref(),
+                            model: *na::to_homogeneous(&model_iso).as_ref()
                         }
                     };
                     let index_buffer = match ib {
@@ -234,7 +197,8 @@ impl Renderer {
                     let program = Program::from_source(f, &vert_shd_src, &frag_shd_src, None).unwrap();
 
                     surface.draw(&vertsource, indsource, &program, &uniforms, &Default::default()).unwrap();
-                }
+                },
+                _ => ()
             }
         }
     }
