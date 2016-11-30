@@ -36,6 +36,21 @@ pub trait State {
     fn event(&mut self, _: Event, Logger) -> EventUpdate { EventUpdate::Halt }
 }
 
+pub trait CreateState: State {
+    // States can "opt-in" to be created by the state machine
+    // Benefits:
+    //  - Get the context you will use early
+    //  - (trivial) Don't have to Box it
+    // Conditions:
+    //  - Must use a set interface to build
+    //  - Interface doesn't support states constructing other states well.
+    //  - Must provide 2 names.
+
+    // For logging
+    fn creation_name() -> &'static str;
+    fn create(&Rc<Context>, Logger) -> Self;
+}
+
 pub struct StateMachine {
     context: Rc<Context>,
     stack: Vec<Box<State>>,
@@ -61,6 +76,14 @@ impl StateMachine {
 
     pub fn stack_size(&self) -> usize {
         self.stack.len()
+    }
+
+    pub fn create_and_push_state<T: CreateState + 'static>(&mut self) {
+        let mut state = Box::new(T::create(&self.context, self.logger.new(o!("create_state"=>T::creation_name()))));
+        let n = state.name();
+        state.setup(&self.context, self.logger.new(o!("state"=>n)));
+        debug!(self.logger, "Created and pushed state"; "mem_loc" => format!("{:p}", state), "name" => state.name());
+        self.stack.push(state);
     }
 
     pub fn push_state(&mut self, mut state: Box<State>) {

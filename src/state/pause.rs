@@ -23,7 +23,7 @@ impl State for PauseState {
     fn draw(&mut self, f: &mut Frame, _: &Rc<Context>, log: Logger) {
         use glium::Surface;
 
-        f.clear_color(1.0, 0.5, 0.3, 1.0);
+        f.clear_color(1.0, 0.5, 0.3, 0.4);
         // debug!(log, "Drawing Pause State TODO");
         // TODO Draw menu thingies
         // TODO Add font drawing support (fontae)

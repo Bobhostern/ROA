@@ -25,4 +25,4 @@ bus = "^1.1"
 toml = "^0.2"
 
 [workspace]
-members = ["fontae", "kei"]
+members = ["fontae", "kei", "honey"]

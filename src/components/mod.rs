@@ -1,10 +1,15 @@
 use specs;
-// TODO Switch to nalgebra
 use nalgebra::{Vector2, Point2, Rotation2};
 use graphics::{Vertex, Index};
 use image::DynamicImage;
 use palette::{Colora, Rgb};
-use glium::index::Index as GIndex;
+
+mod movement;
+pub use self::movement::*;
+mod physics;
+pub use self::physics::*;
+
+// TODO Put Spatial and friends into submodule
 
 #[derive(Clone)]
 // This object physically exists at a point.
@@ -60,7 +65,8 @@ pub enum VisualType {
         // TODO Make sure the common interface supports Sprites (animated stuff), too.
     },
     // TODO Hide using a common interface
-    Still(Box<VerticesProvider>, Option<DynamicImage>)
+    // VProv Texture ZLayer
+    Still(Box<VerticesProvider>, Option<DynamicImage>, f32)
 }
 
 impl specs::Component for VisualType {

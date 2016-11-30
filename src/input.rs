@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Key {
     A, B, C,
     X, Y, Z,
@@ -6,7 +6,14 @@ pub enum Key {
     Up, Down, Left, Right,
 }
 
-use glium::glutin::{VirtualKeyCode, Event, ElementState};
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElementState {
+    Pressed,
+    Held,
+    Released
+}
+
+use glium::glutin::{VirtualKeyCode, Event, ElementState as GElementState};
 use std::collections::HashMap;
 // Converts events into out virtual key codes
 pub struct KeyReader {
@@ -42,7 +49,7 @@ impl KeyReader {
 
     pub fn interpret_event(&self, e: &Event) -> Option<Key> {
         match *e {
-            Event::KeyboardInput(ElementState::Pressed, _, ref ke) => match *ke {
+            Event::KeyboardInput(GElementState::Pressed, _, ref ke) => match *ke {
                 Some(k) => self.interpret_code(&k),
                 None => None
             },

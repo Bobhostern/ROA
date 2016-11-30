@@ -1,0 +1,9 @@
+[package]
+name = "honey"
+version = "0.1.0"
+authors = ["Bobhostern <bob.hostern@gmail.com>"]
+
+[dependencies]
+claxon = "^0.2"
+hound = "^2.0"
+cpal = "^0.4"

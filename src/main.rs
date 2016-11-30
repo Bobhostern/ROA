@@ -26,9 +26,9 @@ mod input;
 mod components;
 mod systems;
 mod font;
-// TODO: Create tests for all NEW systems (go to the tests crate!)
-pub mod utilai;
+mod utilai;
 mod events;
+mod util;
 
 fn main() {
     use glium::DisplayBuild;
@@ -40,7 +40,6 @@ fn main() {
     let display = glium::glutin::WindowBuilder::new()
         .with_dimensions(640, 480)
         .with_title("Spiritus [Name in Flux]")
-        // .with_gl_robustness(glium::glutin::Robustness::RobustNoResetNotification)
         // .with_vsync()
         .build_glium().unwrap();
 
@@ -54,7 +53,7 @@ fn main() {
 
     let file = slog_stream::stream(file, slog_json::default());
     let console = slog_term::streamer().build();
-    let drain = slog_extra::Async::new(slog::duplicate(file, console).fuse()).fuse();
+    let drain = slog::duplicate(file, console).fuse();
 
     let root = slog::Logger::root(drain, o!());
     info!(root, "LoggingSystem initialized"; "build_ver" => env!("CARGO_PKG_VERSION"));
@@ -65,17 +64,24 @@ fn main() {
     state_machine.push_state(state::MainGameState::new());
 
     // Musika!
+    use std::io::BufReader;
     use rodio::Source;
+    use std::time as stdtime;
+
     let endpoint = rodio::get_default_endpoint().unwrap();
     let sink = rodio::Sink::new(&endpoint);
-
-    let s1 = rodio::source::SineWave::new(440);
-    let s2 = rodio::source::SineWave::new(880);
-    let s3 = rodio::source::SineWave::new(220);
-    sink.append(s1.mix(s2).mix(s3).amplify(0.5));
+    let file = match std::fs::File::open("music.wav") {
+        Ok(f) => f,
+        Err(e) => {
+            error!(root, "resource"=>"music"; "Failed to load {}: {}", "music.wav", e);
+            panic!("Failed to load {}: {}", "music.wav", e);
+        }
+    };
+    let source = rodio::Decoder::new(BufReader::new(file)).unwrap().buffered().take_duration(stdtime::Duration::from_secs(65));
+    sink.append(source.repeat_infinite());
 
     while state_machine.stack_size() > 0 {
-        // use std::{thread, time as stdtime};
+        use std::{thread, time as stdtime};
 
         // listing the events produced by the window and waiting to be received
         for ev in display.poll_events() {
@@ -86,17 +92,6 @@ fn main() {
                 ev => state_machine.event(ev)
             };
         }
-        // Note about the controller
-        //
-        // There will be 12 buttons: A, B, C, X, Y, Z, START, SELECT, UP, DOWN, LEFT, and RIGHT
-        // A B C - light med heavy bullet (Klay - bullet hell mode) punch (Wor - hack'n slash mode)
-        // X Y Z - light med heavy beam (Klay) kick (Wor)
-        // START - starts the game
-        // SELECT - selects/confirms something (may merge with select)
-        // Planned mappings:
-        // UP DOWN LEFT RIGHT - corresponding arrow key
-        // START - enter/return, SELECT - Space bar
-        // A B C -> A S D, X Y Z -> Z X C
 
         // Move to system
         let mut target = display.draw();
@@ -107,6 +102,6 @@ fn main() {
 
         state_machine.update();
 
-        // thread::sleep(stdtime::Duration::from_millis(16));
+        thread::sleep(stdtime::Duration::from_millis(16));
     }
 }

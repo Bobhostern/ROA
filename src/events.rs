@@ -1,4 +1,4 @@
-use input::Key;
+use input::{Key, ElementState};
 use std::sync::mpsc::{Sender, Receiver, channel};
 use bus::{Bus, BusReader};
 use std::any::Any;
@@ -9,13 +9,6 @@ type EventBusIn = Bus<Event>;
 // Used for collecting events
 type EventPipeOut = Receiver<Event>;
 pub type EventPipeIn = Sender<Event>;
-
-#[derive(Debug, Clone)]
-pub enum ElementState {
-    Pressed,
-    Held,
-    Released
-}
 
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -56,7 +49,7 @@ pub trait JoinSubscriber: Subscriber {
 }
 
 // Represents multiple subscribers joined together
-struct MultiSubscriber {
+pub struct MultiSubscriber {
     subs: Vec<Box<Subscriber>>
 }
 
